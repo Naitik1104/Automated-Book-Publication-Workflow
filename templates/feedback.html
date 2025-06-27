@@ -2,29 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Provide Feedback</title>
+    <title>Book Publication Workflow Dashboard</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
-        .content-preview { white-space: pre-wrap; margin-bottom: 20px; }
-        textarea { width: 100%; height: 100px; }
-        .button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .content-preview { max-width: 500px; white-space: pre-wrap; }
+        .metadata { font-size: 0.9em; color: #555; }
+        .button { padding: 10px; background-color: #4CAF50; color: white; text-decoration: none; display: inline-block; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <h1>{{ role.capitalize() }} Feedback (Iteration {{ iteration }})</h1>
-    <h3>Content Preview:</h3>
-    <div class="content-preview">{{ content }}</div>
-    <h3>Screenshots:</h3>
-    {% for path in screenshot_paths %}
-        <p><a href="{{ url_for('serve_screenshot', filename=path|replace('screenshots/', '')) }}" target="_blank">View Screenshot Part {{ loop.index }}</a></p>
-    {% endfor %}
-    <form method="POST" action="{{ url_for('feedback', session_id=session_id, role=role, iteration=iteration) }}">
-        <input type="hidden" name="content" value="{{ content }}">
-        <input type="hidden" name="screenshot_paths" value="{{ screenshot_paths|tojson }}">
-        <label for="feedback">Feedback (or type 'approve'):</label><br>
-        <textarea name="feedback" required></textarea><br>
-        <button type="submit" class="button">Submit Feedback</button>
-    </form>
-    <a href="{{ url_for('index') }}">Back to Dashboard</a>
+    <h1>Book Publication Workflow Dashboard</h1>
+    <a href="{{ url_for('start_workflow') }}" class="button">Start New Workflow</a>
+    
+    <h2>ChromaDB Content</h2>
+    <table>
+        <tr>
+            <th>Document ID</th>
+            <th>Content Preview</th>
+            <th>Metadata</th>
+            <th>Output File</th>
+        </tr>
+        {% for doc in documents %}
+        <tr>
+            <td>{{ doc.id }}</td>
+            <td class="content-preview">{{ doc.content }}</td>
+            <td class="metadata">
+                <strong>URL:</strong> {{ doc.metadata.url }}<br>
+                <strong>Timestamp:</strong> {{ doc.metadata.timestamp }}<br>
+                <strong>Screenshot:</strong> 
+                {% if doc.metadata.screenshot_path %}
+                    <a href="{{ url_for('serve_screenshot', filename=doc.metadata.screenshot_path|replace('screenshots/', '')) }}" target="_blank">View Screenshot</a>
+                {% else %}
+                    None
+                {% endif %}
+            </td>
+            <td>
+                {% if doc.metadata.session_id %}
+                    {% for file in output_files %}
+                        {% if doc.metadata.session_id in file %}
+                            <a href="{{ url_for('serve_output', filename=file|replace('output/', '')) }}" target="_blank">View Output</a>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    None
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <h2>Screenshots</h2>
+    <table>
+        <tr>
+            <th>Filename</th>
+            <th>Action</th>
+        </tr>
+        {% for screenshot in screenshots %}
+        <tr>
+            <td>{{ screenshot }}</td>
+            <td><a href="{{ url_for('serve_screenshot', filename=screenshot) }}" target="_blank">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <h2>Output Files</h2>
+    <table>
+        <tr>
+            <th>Filename</th>
+            <th>Action</th>
+        </tr>
+        {% for file in output_files %}
+        <tr>
+            <td>{{ file }}</td>
+            <td><a href="{{ url_for('serve_output', filename=file) }}" target="_blank">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
 </body>
 </html>
