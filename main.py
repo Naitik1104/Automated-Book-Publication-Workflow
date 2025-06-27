@@ -3,7 +3,7 @@ import os
 import uuid
 import json
 import time
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from bs4 import BeautifulSoup
 import chromadb
 from datetime import datetime
@@ -11,27 +11,25 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 import google.api_core.exceptions
 
-# Load environment variables
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not found in .env file")
 
-# Configure Gemini API
 genai.configure(api_key=GEMINI_API_KEY)
 
 def simulate_llm_spin(content, role="writer"):
-    """Simulate LLM for fallback if Gemini API fails."""
+    """Simulate LLM with improved placeholder content."""
     if role == "writer":
-        return f"Spun content: {content[:50]}... [AI-modified version]"
+        return f"Creatively rewritten: {content[:50]}... [Simulated creative transformation]"
     elif role == "reviewer":
-        return f"Reviewed content: {content[:50]}... [AI-refined version]"
+        return f"Refined content: {content[:50]}... [Simulated clarity and coherence improvements]"
     elif role == "editor":
-        return f"Edited content: {content[:50]}... [AI-finalized version]"
+        return f"Polished content: {content[:50]}... [Simulated publication-ready edit]"
     return content
 
 def call_gemini_api(content, role="writer", max_retries=3):
-    """Call Gemini API with retry on rate limit errors."""
+    """Call Gemini API with dynamic retry delays."""
     model = genai.GenerativeModel('gemini-1.5-pro')
     prompt = {
         "writer": f"Rewrite the following content with a creative spin, maintaining the original meaning but altering style and phrasing:\n{content[:1000]}",
@@ -44,9 +42,18 @@ def call_gemini_api(content, role="writer", max_retries=3):
             print(f"Gemini API call successful for {role} role")
             return response.text
         except google.api_core.exceptions.ResourceExhausted as e:
-            print(f"Gemini API rate limit hit for {role} role: {e}. Retrying in {2 ** attempt}s...")
+            retry_delay = 5 
+            try:
+                error_details = str(e)
+                if "retry_delay" in error_details:
+                    import re
+                    seconds = int(re.search(r"seconds: (\d+)", error_details).group(1))
+                    retry_delay = max(seconds, 5)  
+            except:
+                pass
+            print(f"Gemini API rate limit hit for {role} role: {e}. Retrying in {retry_delay}s...")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(retry_delay)
             else:
                 print(f"Gemini API max retries reached for {role} role. Using simulated LLM.")
                 return simulate_llm_spin(content, role)
@@ -55,31 +62,46 @@ def call_gemini_api(content, role="writer", max_retries=3):
             return simulate_llm_spin(content, role)
 
 async def scrape_content_and_screenshot(url, output_dir="screenshots"):
-    """Scrape content and save four screenshots from top to bottom."""
+    """Scrape content and save four screenshots from top to bottom with error handling."""
     os.makedirs(output_dir, exist_ok=True)
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-        await page.goto(url)
-        
-        # Get page height
-        page_height = await page.evaluate("document.body.scrollHeight")
-        viewport_height = await page.evaluate("window.innerHeight")
-        screenshot_paths = []
-        
-        # Take four screenshots at different scroll positions
-        for i in range(4):
-            scroll_position = (page_height / 4) * i
-            await page.evaluate(f"window.scrollTo(0, {scroll_position})")
-            await asyncio.sleep(0.5)  # Wait for scroll to settle
-            screenshot_path = f"{output_dir}/chapter_screenshot_{uuid.uuid4()}_part{i+1}.png"
-            await page.screenshot(path=screenshot_path, full_page=False)
-            screenshot_paths.append(screenshot_path)
-        
-        content = await page.content()
-        soup = BeautifulSoup(content, 'html.parser')
-        main_content = soup.find('div', {'id': 'mw-content-text'})
-        text = main_content.get_text(strip=True) if main_content else ""
+        try:
+            await page.goto(url, wait_until="networkidle", timeout=60000) 
+            
+            # Get page height
+            page_height = await page.evaluate("document.body.scrollHeight")
+            viewport_height = await page.evaluate("window.innerHeight")
+            screenshot_paths = []
+            
+            for i in range(4):
+                scroll_position = (page_height / 4) * i
+                await page.evaluate(f"window.scrollTo(0, {scroll_position})")
+                await page.wait_for_load_state("domcontentloaded")
+                await asyncio.sleep(1)  
+                screenshot_path = f"{output_dir}/chapter_screenshot_{uuid.uuid4()}_part{i+1}.png"
+                try:
+                    await page.screenshot(path=screenshot_path, full_page=False)
+                    screenshot_paths.append(screenshot_path)
+                    print(f"Screenshot saved: {screenshot_path}")
+                except Exception as e:
+                    print(f"Error capturing screenshot part {i+1}: {e}. Skipping this part.")
+            
+            content = await page.content()
+            soup = BeautifulSoup(content, 'html.parser')
+            main_content = soup.find('div', {'id': 'mw-content-text'})
+            text = main_content.get_text(strip=True) if main_content else ""
+            
+        except PlaywrightTimeoutError as e:
+            print(f"Timeout error during page load or screenshot: {e}. Returning partial data.")
+            content = await page.content() if 'page' in locals() else ""
+            soup = BeautifulSoup(content, 'html.parser')
+            main_content = soup.find('div', {'id': 'mw-content-text'})
+            text = main_content.get_text(strip=True) if main_content else ""
+        except Exception as e:
+            print(f"Error during scraping or screenshot: {e}. Returning empty content.")
+            text = ""
         
         await browser.close()
         return text, screenshot_paths
