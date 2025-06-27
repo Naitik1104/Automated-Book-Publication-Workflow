@@ -14,10 +14,13 @@
     <div class="content-preview">{{ content }}</div>
     <p><strong>Document ID:</strong> {{ doc_id }}</p>
     <p><strong>Output JSON:</strong> <a href="{{ url_for('serve_output', filename=output_path|replace('output/', '')) }}" target="_blank">View JSON</a></p>
-    <p><strong>Screenshots:</strong></p>
-    {% for path in screenshot_paths %}
-        <p><a href="{{ url_for('serve_screenshot', filename=path|replace('screenshots/', '')) }}" target="_blank">View Screenshot Part {{ loop.index }}</a></p>
-    {% endfor %}
+    <p><strong>Screenshot:</strong> 
+        {% if screenshot_path %}
+            <a href="{{ url_for('serve_screenshot', filename=screenshot_path|replace('screenshots/', '')) }}" target="_blank">View Screenshot</a>
+        {% else %}
+            None
+        {% endif %}
+    </p>
     <p><strong>Search Result:</strong> {{ search_result[:100] if search_result else "No results" }}</p>
     <a href="{{ url_for('index') }}">Back to Dashboard</a>
 </body>
