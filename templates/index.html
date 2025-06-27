@@ -33,11 +33,9 @@
             <td class="metadata">
                 <strong>URL:</strong> {{ doc.metadata.url }}<br>
                 <strong>Timestamp:</strong> {{ doc.metadata.timestamp }}<br>
-                <strong>Screenshots:</strong><br>
-                {% if doc.metadata.screenshot_paths %}
-                    {% for path in doc.metadata.screenshot_paths %}
-                        <a href="{{ url_for('serve_screenshot', filename=path|replace('screenshots/', '')) }}" target="_blank">View Part {{ loop.index }}</a><br>
-                    {% endfor %}
+                <strong>Screenshot:</strong> 
+                {% if doc.metadata.screenshot_path %}
+                    <a href="{{ url_for('serve_screenshot', filename=doc.metadata.screenshot_path|replace('screenshots/', '')) }}" target="_blank">View Screenshot</a>
                 {% else %}
                     None
                 {% endif %}
