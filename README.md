@@ -64,4 +64,4 @@ pip install -r requirements.txt
 python main.py
 
 # 4. (Optional) Launch the Flask interface
-flask run
+python app.py
