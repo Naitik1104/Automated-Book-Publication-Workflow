@@ -40,8 +40,8 @@ A Python-based system to scrape web content, apply AI-powered content "spinning,
 | `requirements.txt`          | Python dependencies                                    |
 | `README.md`                 | Project documentation                                  |
 | `chromadb_data/`            | Auto-generated folder for ChromaDB database files    |
-| `screenshots/`              | Auto-generated: saves web page screenshots          |
-| `output/`                   | Auto-generated: stores scraped/spun/reviewed content |
+| `screenshots/`              | will be auto-generated: saves web page screenshots          |
+| `output/`                   | will be auto-generated: stores scraped/spun/reviewed content |
 | `templates/`                | HTML files for Flask UI                                |
 | ├── `index.html`            | Landing/editor page for human review                   |
 | ├── `feedback.html`         | Form for reviewer suggestions                          |
